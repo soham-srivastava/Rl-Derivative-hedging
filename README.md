@@ -1,14 +1,14 @@
 # RL Derivative Hedging
 
-Training reinforcement learning agents to hedge a short options position — and showing they beat the standard Black-Scholes formula when market conditions get realistic.
+Training reinforcement learning agents to hedge a short options position  and showing they beat the standard Black-Scholes formula when market conditions get realistic.
 
 ---
 
 ## What this does
 
-When you sell an options contract, you need to hedge your exposure by trading the underlying stock. The standard way to do this is Black-Scholes delta hedging — a formula that tells you exactly how many shares to hold at each moment.
+When you sell an options contract, you need to hedge your exposure by trading the underlying stock. The standard way to do this is Black-Scholes delta hedging  a formula that tells you exactly how many shares to hold at each moment.
 
-The formula works well when its assumptions hold. The problem is they never fully hold in real markets — volatility is not constant, transaction costs exist, and the model is always at least slightly wrong.
+The formula works well when its assumptions hold. The problem is they never fully hold in real markets  volatility is not constant, transaction costs exist, and the model is always at least slightly wrong.
 
 This project trains three RL agents to learn the hedging strategy from scratch, without being given any formula. They interact with a simulated market for thousands of episodes and figure out what position minimises hedging cost.
 
