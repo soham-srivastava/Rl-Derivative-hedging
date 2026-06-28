@@ -21,7 +21,6 @@ This project trains three RL agents to learn the hedging strategy from scratch, 
 | **PPO** | **−0.195** | **−17.6** | **36% cheaper** |
 | DQN | −0.288 | −26.2 | 5% cheaper |
 | BLS-Delta (baseline) | −0.335 | −27.5 | — |
-| BLS-DeltaGamma | −0.354 | −29.1 | worse |
 | SAC | −0.401 | −43.0 | worse at 15k steps |
 
 > All PnLs are negative because this is cost minimisation, not profit — a perfect hedge costs zero, a bad hedge costs more. Lower absolute value = better.
@@ -40,7 +39,7 @@ This project trains three RL agents to learn the hedging strategy from scratch, 
 config.py                       — all hyperparameters in one place
 env.py                          — the options hedging gym environment
 agents.py                       — DQN (C51), PPO, SAC implementations
-bls_baseline.py                 — Black-Scholes delta and delta-gamma hedger
+bls_baseline.py                 — Black-Scholes delta hedger
 train.py                        — training loop for all three agents
 evaluate.py                     — evaluation and plots vs BLS baseline
 experiment1_heston.py           — Heston misspecification experiment

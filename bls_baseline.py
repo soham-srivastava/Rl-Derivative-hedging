@@ -1,5 +1,5 @@
 """
-bls_baseline.py — Black-Scholes Delta & Delta-Gamma Hedge Baseline
+bls_baseline.py — Black-Scholes Delta Hedge Baseline
 
 Runs the textbook BLS hedge on the same environment to produce a cost
 distribution for comparison with RL agents.
@@ -18,9 +18,7 @@ class BLSDeltaHedger:
 
     def __init__(self, env: OptionsHedgingEnv, mode: str = "delta"):
         """
-        mode: "delta"       — pure delta hedge
-              "delta_gamma" — delta + gamma (requires 2nd instrument; approximated
-                              here by adjusting delta by ½ Γ·ΔS² correction)
+        mode: "delta" — pure delta hedge
         """
         self.env  = env
         self.mode = mode
@@ -32,15 +30,6 @@ class BLSDeltaHedger:
         Returns discrete action ∈ {0 … 2*n_max}.
         """
         delta = float(obs[2])
-        gamma_S = float(obs[3])          # gamma × S (dimensionless)
-
-        if self.mode == "delta_gamma":
-            # Crude gamma correction: shift delta by Γ·S·(ΔS estimate)
-            # ΔS estimate ≈ σ·S·√dt
-            S   = float(obs[0]) * self.env.K
-            dS  = self.env.sigma * S * np.sqrt(self.env.dt)
-            gamma = gamma_S / S if S > 0 else 0
-            delta = delta + 0.5 * gamma * dS        # 2nd-order correction
 
         # Target position in shares → clip → round → convert to action
         target_shares = delta * self.n_max * self.env.lot
@@ -108,8 +97,3 @@ if __name__ == "__main__":
     res = run_baseline("delta", n_episodes=500, verbose=True)
     print(f"\nBLS Delta  → Mean: {res['mean']:.4f}  Std: {res['std']:.4f}  "
           f"Sharpe: {res['sharpe']:.4f}")
-
-    print("\nRunning BLS delta-gamma baseline …")
-    res2 = run_baseline("delta_gamma", n_episodes=500, verbose=True)
-    print(f"BLS DeltaΓ → Mean: {res2['mean']:.4f}  Std: {res2['std']:.4f}  "
-          f"Sharpe: {res2['sharpe']:.4f}")

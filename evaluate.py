@@ -15,6 +15,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import AutoMinorLocator
+import seaborn as sns
 import torch
 
 from config import ENV, DQN, PPO, SAC, EVAL
@@ -23,37 +24,38 @@ from agents import DQNAgent, PPOAgent, SACAgent, DEVICE
 from bls_baseline import run_baseline
 
 
-# ── Styling ────────────────────────────────────────────────────────────────────
+# ── Styling (seaborn, bright/light background) ────────────────────────────────
+sns.set_theme(style="whitegrid", palette="bright")
+_BRIGHT = sns.color_palette("bright", 5)
 COLORS = {
-    "DQN"       : "#e05c5c",
-    "PPO"       : "#f5c842",
-    "SAC"       : "#3de88a",
-    "BLS-Delta" : "#5c7ae0",
-    "BLS-DeltaΓ": "#a07ae0",
+    "DQN"       : _BRIGHT[3],
+    "PPO"       : _BRIGHT[2],
+    "SAC"       : _BRIGHT[1],
+    "BLS-Delta" : _BRIGHT[0],
 }
 
 plt.rcParams.update({
-    "figure.facecolor"  : "#08090c",
-    "axes.facecolor"    : "#0f1117",
-    "axes.edgecolor"    : "#1e2130",
-    "axes.labelcolor"   : "#c8ccd8",
+    "figure.facecolor"  : "#ffffff",
+    "axes.facecolor"    : "#eef3fb",
+    "savefig.facecolor" : "#ffffff",
+    "axes.edgecolor"    : "#c8d2e0",
+    "axes.labelcolor"   : "#1b1f27",
     "xtick.color"       : "#4a4f63",
     "ytick.color"       : "#4a4f63",
-    "text.color"        : "#c8ccd8",
-    "grid.color"        : "#1e2130",
+    "text.color"        : "#1b1f27",
+    "grid.color"        : "#d6dee8",
     "grid.linewidth"    : 0.6,
-    "font.family"       : "monospace",
     "axes.titlesize"    : 11,
     "axes.labelsize"    : 9,
     "xtick.labelsize"   : 8,
     "ytick.labelsize"   : 8,
     "legend.fontsize"   : 8,
-    "legend.facecolor"  : "#0f1117",
-    "legend.edgecolor"  : "#1e2130",
+    "legend.facecolor"  : "#ffffff",
+    "legend.edgecolor"  : "#c8d2e0",
 })
 
 
-def set_spine(ax, color="#1e2130"):
+def set_spine(ax, color="#c8d2e0"):
     for spine in ax.spines.values():
         spine.set_edgecolor(color)
 
@@ -111,10 +113,10 @@ def load_agent(name: str, obs_dim: int, n_actions: int):
 def plot_cost_distributions(results: dict, save_path: str):
     """Overlapping cost histograms — mirrors the slide image."""
     fig, ax = plt.subplots(figsize=(9, 5))
-    fig.patch.set_facecolor("#08090c")
-    ax.set_facecolor("#0f1117")
 
-    bins = np.linspace(-8, 12, 60)
+    all_costs = np.concatenate([res["cost"] for res in results.values()])
+    lo, hi = np.percentile(all_costs, [0.5, 99.5])
+    bins = np.linspace(lo, hi, 60)
     for label, res in results.items():
         costs = res["cost"]
         ax.hist(costs, bins=bins, alpha=0.55, color=COLORS.get(label, "#888"),
@@ -123,10 +125,9 @@ def plot_cost_distributions(results: dict, save_path: str):
 
     ax.set_xlabel("Hedging Cost  (−PnL per episode)")
     ax.set_ylabel("Number of Trials")
-    ax.set_title("RL Hedge Costs vs. BLS Hedge Costs", pad=12, color="#eef0f7",
+    ax.set_title("RL Hedge Costs vs. BLS Hedge Costs", pad=12,
                  fontsize=13, fontweight="bold")
     ax.legend(loc="upper right")
-    ax.grid(True, axis="y", alpha=0.4)
     ax.xaxis.set_minor_locator(AutoMinorLocator())
     set_spine(ax)
     plt.tight_layout()
@@ -143,7 +144,7 @@ def plot_pnl_distributions(results: dict, save_path: str):
     colors  = [COLORS.get(k, "#888") for k in labels]
 
     bp = ax.boxplot(data, patch_artist=True, notch=True,
-                    medianprops=dict(color="#eef0f7", linewidth=1.5),
+                    medianprops=dict(color="#1b1f27", linewidth=1.5),
                     whiskerprops=dict(color="#4a4f63"),
                     capprops=dict(color="#4a4f63"),
                     flierprops=dict(marker=".", markersize=2,
@@ -153,9 +154,8 @@ def plot_pnl_distributions(results: dict, save_path: str):
 
     ax.set_xticklabels(labels, rotation=15)
     ax.set_ylabel("Episode PnL")
-    ax.set_title("PnL Distribution by Agent", pad=10, color="#eef0f7", fontsize=12)
+    ax.set_title("PnL Distribution by Agent", pad=10, fontsize=12)
     ax.axhline(0, color="#4a4f63", linestyle="--", linewidth=0.8)
-    ax.grid(True, axis="y", alpha=0.4)
     set_spine(ax)
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
@@ -181,10 +181,9 @@ def plot_training_curves(save_path: str):
                 ma = np.convolve(rewards, np.ones(50)/50, mode="valid")
                 ax.plot(np.arange(49, len(rewards)), ma, color=color, linewidth=1.4,
                         label=f"MA-50")
-            ax.set_title(name.upper(), color="#eef0f7")
+            ax.set_title(name.upper())
             ax.set_xlabel("Episode")
             ax.set_ylabel("Total Reward")
-            ax.grid(True, alpha=0.3)
             ax.legend(fontsize=7)
         else:
             ax.text(0.5, 0.5, f"No log: {name}_rewards.npy",
@@ -196,7 +195,7 @@ def plot_training_curves(save_path: str):
         plt.close()
         return
 
-    fig.suptitle("Training Curves", color="#eef0f7", fontsize=13, y=1.01)
+    fig.suptitle("Training Curves", fontsize=13, y=1.01)
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close()
@@ -228,18 +227,17 @@ def plot_summary_table(results: dict, save_path: str):
     tbl.set_fontsize(9)
     tbl.scale(1, 1.8)
 
+    pos_color, neg_color = sns.color_palette("bright", 5)[1], sns.color_palette("bright", 5)[3]
     for (r, c), cell in tbl.get_celld().items():
-        cell.set_facecolor("#0f1117" if r > 0 else "#1e2130")
-        cell.set_edgecolor("#1e2130")
-        cell.set_text_props(color="#c8ccd8" if r > 0 else "#eef0f7")
+        cell.set_facecolor("#eef3fb" if r > 0 else "#dbe6f5")
+        cell.set_edgecolor("#c8d2e0")
+        cell.set_text_props(color="#1b1f27")
         if r > 0 and c > 0:
             val = float(cell.get_text().get_text())
             if c in (1, 3, 4, 5):  # PnL columns — green positive
-                cell.set_text_props(
-                    color="#3de88a" if val >= 0 else "#e05c5c"
-                )
+                cell.set_text_props(color=pos_color if val >= 0 else neg_color)
 
-    ax.set_title("Agent Comparison Summary", color="#eef0f7", fontsize=12, pad=14)
+    ax.set_title("Agent Comparison Summary", fontsize=12, pad=14)
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close()
@@ -259,21 +257,23 @@ def plot_single_episode(agent, agent_name: str, save_path: str):
     steps = np.arange(len(env.history["S"]))
     fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
 
-    axes[0].plot(steps, env.history["S"], color=COLORS.get(agent_name, "#5c7ae0"),
-                 linewidth=1.2)
+    line_color = COLORS.get(agent_name, sns.color_palette("bright", 5)[0])
+
+    axes[0].plot(steps, env.history["S"], color=line_color, linewidth=1.2)
     axes[0].axhline(ENV["K"], color="#4a4f63", linestyle="--", linewidth=0.8)
     axes[0].set_ylabel("Spot Price"); axes[0].set_title(f"{agent_name} — Single Episode")
 
-    axes[1].step(steps, env.history["position"], color="#f5c842", linewidth=1.2, where="post")
+    axes[1].step(steps, env.history["position"], color=sns.color_palette("bright", 5)[2],
+                 linewidth=1.2, where="post")
     axes[1].axhline(0, color="#4a4f63", linestyle="--", linewidth=0.6)
     axes[1].set_ylabel("Hedge Position (shares)")
 
-    axes[2].plot(steps, env.history["pnl"], color="#3de88a", linewidth=1.2)
+    axes[2].plot(steps, env.history["pnl"], color=sns.color_palette("bright", 5)[1], linewidth=1.2)
     axes[2].axhline(0, color="#4a4f63", linestyle="--", linewidth=0.6)
     axes[2].set_ylabel("Cumulative PnL"); axes[2].set_xlabel("Step (trading day)")
 
     for ax in axes:
-        ax.grid(True, alpha=0.3); set_spine(ax)
+        set_spine(ax)
 
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
@@ -302,13 +302,11 @@ def main():
     del env_tmp
 
     # ── Baselines ─────────────────────────────────────────────────────────────
-    print("Running BLS baselines …")
-    bls_d  = run_baseline("delta",       n_ep, verbose=True)
-    bls_dg = run_baseline("delta_gamma", n_ep, verbose=True)
+    print("Running BLS baseline …")
+    bls_d  = run_baseline("delta", n_ep, verbose=True)
 
     results = {
         "BLS-Delta" : bls_d,
-        "BLS-DeltaΓ": bls_dg,
     }
 
     # ── RL Agents ─────────────────────────────────────────────────────────────

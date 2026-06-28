@@ -17,7 +17,7 @@ from gymnasium import spaces
 from scipy.stats import norm
 from config import ENV
 
-
+# call defined
 def bs_price(S, K, tau, r, sigma):
     """Black-Scholes call price. Returns (price, delta, gamma, vega)."""
     if tau <= 0:
@@ -40,10 +40,10 @@ class OptionsHedgingEnv(gym.Env):
         0 : moneyness          S/K  (≈ 0.7–1.4)
         1 : time-to-expiry     τ/T  (1 → 0)
         2 : BS delta           (0–1)
-        3 : BS gamma × S       (dimensionless sensitivity)
+        3 : BS gamma × S       (dimensionless sensitivity) # why multiply by S?
         4 : current position   / n_lots_max  (-1 to +1)
-        5 : running PnL        / S0          (clipped ±1)
-        6 : realised vol proxy (20-day)      / σ_ref
+        5 : running PnL        / S0          (clipped ±1) # why is it clipped?
+        6 : realised vol proxy (20-day)      / σ_ref what is sigma ref?
     """
 
     metadata = {"render_modes": ["human"]}
@@ -87,7 +87,7 @@ class OptionsHedgingEnv(gym.Env):
         rv = self.sigma  # fallback
         if len(self._vol_window) >= 5:
             rv = np.std(self._vol_window[-20:]) / np.sqrt(self.dt)
-            rv = np.clip(rv, 0.01, 2.0)
+            rv = np.clip(rv, 0.01, 2.0) # why clipping is required?
 
         obs = np.array([
             S / self.K,
