@@ -13,12 +13,12 @@ from config import ENV, EVAL
 class BLSDeltaHedger:
     """
     Textbook delta hedge: rebalance to BLS delta every step.
-    Action: set position = round(delta * n_lots_max) lots.
+    Action: trade enough lots so final position matches rounded BLS delta target.
     """
 
     def __init__(self, env: OptionsHedgingEnv, mode: str = "delta"):
         """
-        mode: "delta" — pure delta hedge
+        mode: "delta" — pure delta hedge (only mode currently implemented)
         """
         self.env  = env
         self.mode = mode
@@ -27,15 +27,21 @@ class BLSDeltaHedger:
     def select_action(self, obs) -> int:
         """
         obs = [S/K, tau/T, delta, gamma*S, position/n_max, pnl/S0, rv/sigma]
-        Returns discrete action ∈ {0 … 2*n_max}.
+        Returns discrete action ∈ {0 … 2*n_max}, where env.step() interprets
+        action as a TRADE of (action - n_max) lots, not a target position.
         """
         delta = float(obs[2])
 
-        # Target position in shares → clip → round → convert to action
-        target_shares = delta * self.n_max * self.env.lot
-        target_lots   = int(np.round(np.clip(target_shares / self.env.lot,
-                                             -self.n_max, self.n_max)))
-        return target_lots + self.n_max   # shift to {0 … 2*n_max}
+        # Desired final position in lots → clip → round
+        desired_lots = int(np.round(np.clip(delta * self.n_max,
+                                            -self.n_max, self.n_max)))
+
+        # Convert desired position into the trade required to get there
+        current_lots = int(np.round(self.env.position / self.env.lot))
+        trade_lots   = int(np.clip(desired_lots - current_lots,
+                                   -self.n_max, self.n_max))
+
+        return trade_lots + self.n_max   # shift to {0 … 2*n_max}
 
 
 def run_baseline(mode: str = "delta", n_episodes: int = None,
@@ -57,17 +63,14 @@ def run_baseline(mode: str = "delta", n_episodes: int = None,
         obs, _ = env.reset(seed=int(rng.integers(0, 2**31)))
         total_reward = 0.0
         total_tc     = 0.0
-        prev_pos     = 0
 
         while True:
             action = hedger.select_action(obs)
-            obs, reward, done, _, _ = env.step(action)
+            obs, reward, done, _, info = env.step(action)
             total_reward += reward
 
-            # estimate TC this step
-            trade = abs(env.position - prev_pos)
-            total_tc += trade * env.S * env.tc
-            prev_pos = env.position
+            # exact TC this step, as charged inside env.step()
+            total_tc += info["tc_cost"]
 
             if done:
                 break
