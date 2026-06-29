@@ -6,7 +6,7 @@ Action : discrete lots to trade  ∈ {-n_lots_max, ..., +n_lots_max}
          (2*n_lots_max + 1 actions total)
 
 The agent holds a SHORT call position of 1 contract (100 shares notional).
-It trades the underlying to hedge. Reward = Δportfolio_value − |TC|.
+It trades the underlying to hedge. Reward = Δportfolio_value - |TC|.
 
 Price dynamics: Geometric Brownian Motion with optional stochastic vol (Heston).
 """
@@ -17,7 +17,7 @@ from gymnasium import spaces
 from scipy.stats import norm
 from config import ENV
 
-# call defined
+# call defined return price delta gamma vega
 def bs_price(S, K, tau, r, sigma):
     """Black-Scholes call price. Returns (price, delta, gamma, vega)."""
     if tau <= 0:
@@ -73,11 +73,11 @@ class OptionsHedgingEnv(gym.Env):
         self.reset()
 
     # ── Internal helpers ──────────────────────────────────────────────────────
-
+    # step_idx increases with each step call .
     def _tau(self):
         """Remaining time in years."""
         return max((self.T - self.step_idx) * self.dt, 1e-8)
-
+    # the observation set for the agent 
     def _obs(self):
         S, K = self.S, self.K
         tau  = self._tau()
@@ -87,7 +87,7 @@ class OptionsHedgingEnv(gym.Env):
         rv = self.sigma  # fallback
         if len(self._vol_window) >= 5:
             rv = np.std(self._vol_window[-20:]) / np.sqrt(self.dt)
-            rv = np.clip(rv, 0.01, 2.0) # why clipping is required?
+            rv = np.clip(rv, 0.01, 2.0) # why clipping is required? -> to make the traning stable 
 
         obs = np.array([
             S / self.K,
@@ -99,7 +99,7 @@ class OptionsHedgingEnv(gym.Env):
             rv / self.sigma,
         ], dtype=np.float32)
         return obs
-
+    # S is updatted (spot price is updated using GBM) and log rv is also appended 
     def _step_price(self):
         """GBM step."""
         z = self.rng.standard_normal()
@@ -108,12 +108,10 @@ class OptionsHedgingEnv(gym.Env):
         lr = np.log(self.S / self._S_prev) if self._S_prev > 0 else 0.0
         self._vol_window.append(lr)
         self._S_prev = self.S
-
-    # ── Gym API ───────────────────────────────────────────────────────────────
-
+    # it reset the state of the env to starting state and returns initial observation and info dict 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        self.rng = np.random.default_rng(seed)
+        self.rng = np.random.default_rng(seed)#rng is a generator
 
         self.S           = self.S0
         self._S_prev     = self.S0
@@ -134,9 +132,10 @@ class OptionsHedgingEnv(gym.Env):
     def step(self, action):
         # action ∈ {0, …, 2*n_max} → trade_lots ∈ {-n_max, …, n_max}
         trade_lots = int(action) - self.n_max
+
         trade_shares = trade_lots * self.lot
 
-        # --- Execute trade ---
+        #  Execute trade 
         S_before = self.S
         tc_cost  = abs(trade_shares) * S_before * self.tc
         self._cash      -= trade_shares * S_before + tc_cost
@@ -148,16 +147,16 @@ class OptionsHedgingEnv(gym.Env):
             self._cash   += excess * S_before
             self.position -= excess
 
-        # --- Evolve price ---
+        #  Evolve price 
         self._step_price()
         self.step_idx += 1
         done = (self.step_idx >= self.T)
 
-        # --- Portfolio P&L ---
+        #  Portfolio P&L
         # hedge book: long position gains/losses
         hedge_pnl = self.position * (self.S - S_before)
 
-        # option book: short call — its value change is our loss
+        # option book: short call  its value change is our loss
         tau_new = self._tau()
         opt_val_new, _, _, _ = bs_price(self.S, self.K, tau_new, self.r, self.sigma)
 
@@ -171,7 +170,7 @@ class OptionsHedgingEnv(gym.Env):
         step_pnl = hedge_pnl + option_pnl - tc_cost
         self.running_pnl += step_pnl
 
-        # --- Reward ---
+        #  Reward 
         if self.rew_type == "pnl_tc":
             reward = step_pnl / self.S0
         elif self.rew_type == "sharpe":
